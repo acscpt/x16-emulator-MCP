@@ -1,0 +1,81 @@
+# SPDX-FileCopyrightText: 2026 Heisenberg (acscpt)
+# SPDX-License-Identifier: MIT
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "x16-emulator-mcp"
+version = "0.1.0"
+description = "Pure-Python client harness and MCP server exposing the Commander X16 emulator's stdio debugger to MCP-speaking clients"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+authors = [{ name = "acscpt" }]
+keywords = [
+    "commander-x16",
+    "x16",
+    "6502",
+    "65c816",
+    "emulator",
+    "debugger",
+    "mcp",
+    "model-context-protocol",
+    "retro",
+    "8bit",
+    "llm",
+    "ai-tools",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Emulators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+# The x16dbg harness is pure standard library and has no runtime dependencies.
+# The MCP server (x16mcp) needs the MCP SDK; it is an optional extra so the
+# harness stays installable with zero third-party packages.
+dependencies = []
+
+[project.optional-dependencies]
+server = ["mcp==1.27.0"]
+dev = ["pytest>=7", "pytest-cov>=4", "ruff>=0.6"]
+
+[project.scripts]
+x16mcp = "x16mcp.server:main"
+
+[project.urls]
+Repository = "https://github.com/acscpt/x16-emulator-MCP"
+Issues = "https://github.com/acscpt/x16-emulator-MCP/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_functions = "test*"
+addopts = "-v --cov --cov-report=term-missing --report"
+
+[tool.coverage.run]
+source = ["x16dbg", "x16mcp"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+# E/F: pycodestyle + pyflakes. I: import sorting. Deliberately no pep8-naming
+# (N) rules: the house style uses camelCase methods
+select = ["E", "F", "I"]
