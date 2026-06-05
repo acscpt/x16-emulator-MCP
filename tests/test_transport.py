@@ -137,3 +137,44 @@ def testWarpEventRaceCollectsWatchpoint(transport: Transport) -> None:
     events = transport.resumeCollectingEvents("cnt", until_prefix="* WP")
 
     assert any(e.startswith("* WP 0 w 00:0070=aa") and "pc=00:0502" in e for e in events)
+
+
+def testBuildArgsAssemblesLaunchOptions() -> None:
+    """The launch argv reflects the prg, load address, run, startup-bp, and warp options.
+
+    A pure check of the command-line construction, so it needs no emulator. The
+    emulator loads a -prg by typing LOAD at the BASIC prompt once it boots, so a
+    live load is timing-dependent; the argv is what the harness actually owns.
+    """
+
+    plain = Transport._buildArgs("x16emu", "rom.bin", None, None, False, None, True)
+    assert plain == ["x16emu", "-rom", "rom.bin", "-debugstdio", "-warp"]
+
+    # A PRG with a load-address override and autostart, a startup breakpoint, no warp.
+    full = Transport._buildArgs("x16emu", "rom.bin", "app.prg", 0x0801, True, 0xC000, False)
+    assert full == [
+        "x16emu",
+        "-rom",
+        "rom.bin",
+        "-prg",
+        "app.prg,801",
+        "-run",
+        "-debugstdio",
+        "c000",
+    ]
+
+
+def testCommandAfterProcessDeathRaises(transport: Transport) -> None:
+    """A command sent after the emulator has died raises rather than hanging.
+
+    Args:
+        transport: the connected transport fixture.
+    """
+
+    transport.proc.kill()
+    transport.proc.wait()
+
+    # The send hits a closed pipe or the read hits EOF; either surfaces as an
+    # exception instead of blocking on a prompt that will never come.
+    with pytest.raises((EOFError, OSError, X16dbgError)):
+        transport.command("ver")

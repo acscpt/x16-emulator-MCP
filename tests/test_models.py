@@ -14,11 +14,15 @@ import pytest
 from x16dbg.models import (
     AccessType,
     BreakEvent,
+    Breakpoint,
     BreakReason,
     MemoryDump,
     MemoryRow,
     Registers,
+    StackEntry,
+    VeraState,
     WatchHit,
+    Watchpoint,
 )
 from x16dbg.transport import X16dbgError
 
@@ -52,6 +56,48 @@ def testWatchHitRejectsNonWatchpointLine() -> None:
         WatchHit.parse("* RES")
 
 
+def testWatchpointParsesPlainRow() -> None:
+    """A single-byte lwp row parses with no range, condition, or off."""
+
+    armed = Watchpoint.parse("0: w 00:0070 hits=0")
+
+    assert armed.id == 0
+    assert armed.access is AccessType.WRITE
+    assert armed.addr == 0x70
+    assert armed.end is None
+    assert armed.hits == 0
+    assert armed.enabled is True
+    assert armed.condition is None
+
+
+def testWatchpointParsesRange() -> None:
+    """A range lwp row parses its inclusive end and access type."""
+
+    armed = Watchpoint.parse("1: rw 00:0080-008f hits=2")
+
+    assert armed.access is AccessType.READWRITE
+    assert armed.addr == 0x80
+    assert armed.end == 0x8F
+    assert armed.hits == 2
+
+
+def testWatchpointParsesConditionAndDisabled() -> None:
+    """A row carrying both a condition and the off flag parses both."""
+
+    armed = Watchpoint.parse("0: w 00:0070 hits=5 if val != $00 off")
+
+    assert armed.hits == 5
+    assert armed.condition == "val != $00"
+    assert armed.enabled is False
+
+
+def testWatchpointRejectsNonRow() -> None:
+    """A line that is not a watchpoint listing row raises."""
+
+    with pytest.raises(X16dbgError):
+        Watchpoint.parse("RDY")
+
+
 def testBreakEventParsesBreakpoint() -> None:
     """A breakpoint break parses its reason and address."""
 
@@ -77,6 +123,52 @@ def testBreakEventRejectsUnknownReason() -> None:
         BreakEvent.parse("* BRK NOPE 00 0000")
 
 
+def testBreakpointParsesPlainRow() -> None:
+    """A plain lbp row parses its bank and address with no condition."""
+
+    breakpoint_ = Breakpoint.parse("00: c010")
+
+    assert breakpoint_.bank == 0x00
+    assert breakpoint_.addr == 0xC010
+    assert breakpoint_.condition is None
+
+
+def testBreakpointParsesConditionalRow() -> None:
+    """A conditional lbp row keeps the verbatim if-clause."""
+
+    breakpoint_ = Breakpoint.parse("00: c04f  if a == $ff")
+
+    assert breakpoint_.addr == 0xC04F
+    assert breakpoint_.condition == "a == $ff"
+    assert breakpoint_.enabled is True
+
+
+def testBreakpointParsesDisabledRow() -> None:
+    """A disabled lbp row parses the off flag with no condition."""
+
+    breakpoint_ = Breakpoint.parse("00: c010 off")
+
+    assert breakpoint_.addr == 0xC010
+    assert breakpoint_.enabled is False
+    assert breakpoint_.condition is None
+
+
+def testBreakpointParsesConditionalDisabledRow() -> None:
+    """A row carrying both a condition and the off flag parses both."""
+
+    breakpoint_ = Breakpoint.parse("00: c04f  if a == $ff off")
+
+    assert breakpoint_.condition == "a == $ff"
+    assert breakpoint_.enabled is False
+
+
+def testBreakpointRejectsNonRow() -> None:
+    """A line that is not a breakpoint listing row raises."""
+
+    with pytest.raises(X16dbgError):
+        Breakpoint.parse("RDY")
+
+
 def testRegistersParseRealDump() -> None:
     """The reg dump line parses into the register snapshot."""
 
@@ -100,6 +192,13 @@ def testRegistersMissingFieldRaises() -> None:
 
     with pytest.raises(X16dbgError):
         Registers.parse("mode=c02 pc=c000")
+
+
+def testRegistersMalformedTokenRaises() -> None:
+    """A reg dump with a token lacking '=' raises rather than mis-splitting."""
+
+    with pytest.raises(X16dbgError):
+        Registers.parse("mode=c02 garbage pc=c000")
 
 
 def testMemoryRowParsesAddressAndBytes() -> None:
@@ -133,3 +232,51 @@ def testMemoryRowRejectsNonRow() -> None:
 
     with pytest.raises(X16dbgError):
         MemoryRow.parse("RDY")
+
+
+def testStackEntryParsesRow() -> None:
+    """A stk row parses its address and byte value."""
+
+    entry = StackEntry.parse("01fe: 12")
+
+    assert entry.addr == 0x01FE
+    assert entry.value == 0x12
+
+
+def testStackEntryRejectsNonRow() -> None:
+    """A line that is not a stack row raises."""
+
+    with pytest.raises(X16dbgError):
+        StackEntry.parse("RDY")
+
+
+def testVeraStateParsesSnapshot() -> None:
+    """The vrg line parses into the VERA state snapshot."""
+
+    line = (
+        "addr0=0c000 addr1=00000 data0=ff data1=00 ctrl=00 video=01 "
+        "hscale=80 vscale=80 fxctl=00 fxmul=00 cache=00000000 accum=00000000"
+    )
+
+    state = VeraState.parse(line)
+
+    assert state.addr0 == 0xC000
+    assert state.data0 == 0xFF
+    assert state.video == 0x01
+    assert state.hscale == 0x80
+    assert state.cache == 0
+    assert state.accum == 0
+
+
+def testVeraStateMissingFieldRaises() -> None:
+    """A vrg line missing a field raises rather than guessing."""
+
+    with pytest.raises(X16dbgError):
+        VeraState.parse("addr0=0c000 addr1=00000")
+
+
+def testVeraStateMalformedTokenRaises() -> None:
+    """A vrg line with a token lacking '=' raises rather than mis-splitting."""
+
+    with pytest.raises(X16dbgError):
+        VeraState.parse("addr0=0c000 garbage data0=ff")

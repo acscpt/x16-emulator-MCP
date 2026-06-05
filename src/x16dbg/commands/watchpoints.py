@@ -3,15 +3,17 @@
 
 """Watchpoint commands.
 
-This is the slice subset: arm a watchpoint, list the armed set, and clear one
-or all. A watchpoint stops the CPU when it reads or writes a watched location.
+A watchpoint stops the CPU when it reads or writes a watched location, naming
+the instruction that made the access. This module arms one over a byte or a
+range, optionally conditional; lists the armed set as typed results; enables or
+disables one without removing it; and clears one or all.
 """
 
 from __future__ import annotations
 
 import re
 
-from x16dbg.models import AccessType
+from x16dbg.models import AccessType, Watchpoint
 from x16dbg.transport import Transport, X16dbgError, formatHex
 
 # The echo a successful swp prints: "wp <id> set".
@@ -64,16 +66,42 @@ class WatchpointCommands:
         slot_id = self._parseAssignedId(response.data)
         return slot_id
 
-    def listWatchpoints(self) -> list[str]:
-        """List the armed watchpoints as their raw status lines.
+    def listWatchpoints(self) -> tuple[Watchpoint, ...]:
+        """List the armed watchpoints as typed results.
 
         Returns:
-            list[str]: one line per watchpoint, such as "0: w 00:0070 hits=0".
+            tuple[Watchpoint, ...]: one parsed watchpoint per slot, empty when
+            none are armed.
         """
 
+        # An empty table returns no data lines, so the result is naturally empty.
         response = self.transport.command("lwp")
-        lines = response.data
-        return lines
+        watchpoints = tuple(Watchpoint.parse(line) for line in response.data)
+        return watchpoints
+
+    def enableWatchpoint(self, slot_id: int) -> None:
+        """Re-enable a disabled watchpoint so it fires again.
+
+        Args:
+            slot_id: the slot id of the watchpoint to enable.
+
+        Raises:
+            X16dbgError: when the slot holds no watchpoint.
+        """
+
+        self.transport.command("wp " + str(slot_id) + " on")
+
+    def disableWatchpoint(self, slot_id: int) -> None:
+        """Mute a watchpoint without removing it, keeping its definition and hits.
+
+        Args:
+            slot_id: the slot id of the watchpoint to disable.
+
+        Raises:
+            X16dbgError: when the slot holds no watchpoint.
+        """
+
+        self.transport.command("wp " + str(slot_id) + " off")
 
     def clearWatchpoint(self, which: int | str) -> None:
         """Clear one watchpoint by id, or all of them with "*".

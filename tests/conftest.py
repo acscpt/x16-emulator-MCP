@@ -24,11 +24,13 @@ import inspect
 import os
 import re
 from collections import OrderedDict
+from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import pytest
 
+from x16dbg.client import Client
 from x16dbg.config import discoverEmulator, discoverRom
 
 # -----------------------------------------------------------------------
@@ -66,6 +68,22 @@ def romPath() -> Path:
         pytest.skip("rom.bin not found; set $X16ROM_PATH or drop it in resources/")
 
     return found
+
+
+@pytest.fixture
+def client(emulatorBinary: Path, romPath: Path) -> Iterator[Client]:
+    """Provide a connected client, closed when the test finishes.
+
+    Args:
+        emulatorBinary: the discovered emulator path fixture.
+        romPath: the discovered ROM path fixture.
+
+    Returns:
+        Iterator[Client]: the connected client for the test.
+    """
+
+    with Client.launch(emulatorBinary, romPath) as connected:
+        yield connected
 
 
 # -----------------------------------------------------------------------

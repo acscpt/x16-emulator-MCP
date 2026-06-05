@@ -15,11 +15,15 @@ from x16dbg.config import discoverEmulator, discoverPrg, discoverRom
 from x16dbg.models import (
     AccessType,
     BreakEvent,
+    Breakpoint,
     BreakReason,
     MemoryDump,
     MemoryRow,
     Registers,
+    StackEntry,
+    VeraState,
     WatchHit,
+    Watchpoint,
 )
 from x16dbg.transport import (
     PROTOCOL_VERSION,
@@ -48,9 +52,13 @@ __all__ = [
     "AccessType",
     "BreakReason",
     "WatchHit",
+    "Watchpoint",
     "BreakEvent",
+    "Breakpoint",
     "Registers",
     "MemoryRow",
     "MemoryDump",
+    "StackEntry",
+    "VeraState",
     "__version__",
 ]

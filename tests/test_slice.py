@@ -11,29 +11,8 @@ test's arm-and-resume pattern.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
-from pathlib import Path
-
-import pytest
-
 from x16dbg.client import Client
 from x16dbg.models import AccessType, WatchHit
-
-
-@pytest.fixture
-def client(emulatorBinary: Path, romPath: Path) -> Iterator[Client]:
-    """Provide a connected client, closed when the test finishes.
-
-    Args:
-        emulatorBinary: the discovered emulator path fixture.
-        romPath: the discovered ROM path fixture.
-
-    Returns:
-        Iterator[Client]: the connected client for the test.
-    """
-
-    with Client.launch(emulatorBinary, romPath) as c:
-        yield c
 
 
 def armCorruptingRoutine(c: Client) -> None:
@@ -78,37 +57,3 @@ def testCorruptionHuntLoop(client: Client) -> None:
 
     dump = client.readMemory(0x00, 0x70, 1)
     assert dump.data[0] == 0xAA
-
-
-def testWatchpointListAndClear(client: Client) -> None:
-    """An armed watchpoint shows in the list and is gone after a clear.
-
-    Args:
-        client: the connected client fixture.
-    """
-
-    client.transport.command("brk")
-    client.transport.command("cwp *")
-
-    slot = client.setWatchpoint(AccessType.WRITE, 0x00, 0x70)
-    listed = client.listWatchpoints()
-    assert any(line.startswith(f"{slot}: w 00:0070") for line in listed)
-
-    client.clearWatchpoint(slot)
-    assert client.listWatchpoints() == []
-
-
-def testConditionalWatchpointArms(client: Client) -> None:
-    """A watchpoint condition is accepted and shown on the list line.
-
-    Args:
-        client: the connected client fixture.
-    """
-
-    client.transport.command("brk")
-    client.transport.command("cwp *")
-
-    client.setWatchpoint(AccessType.WRITE, 0x00, 0x70, condition="val == $aa")
-    listed = client.listWatchpoints()
-
-    assert any("if val == $aa" in line for line in listed)

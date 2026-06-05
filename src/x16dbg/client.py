@@ -13,16 +13,33 @@ from __future__ import annotations
 import os
 
 from x16dbg.commands import (
+    BreakpointCommands,
+    CaptureCommands,
+    DisasmCommands,
     ExecutionCommands,
+    InspectionCommands,
     MemoryCommands,
     RegisterCommands,
+    SessionCommands,
+    VramCommands,
     WatchpointCommands,
 )
 from x16dbg.models import BreakEvent, WatchHit
 from x16dbg.transport import PROTOCOL_VERSION, Transport
 
 
-class Client(ExecutionCommands, WatchpointCommands, RegisterCommands, MemoryCommands):
+class Client(
+    ExecutionCommands,
+    BreakpointCommands,
+    WatchpointCommands,
+    RegisterCommands,
+    MemoryCommands,
+    VramCommands,
+    DisasmCommands,
+    InspectionCommands,
+    CaptureCommands,
+    SessionCommands,
+):
     """A connected debugger client over one emulator session."""
 
     def __init__(self, transport: Transport) -> None:

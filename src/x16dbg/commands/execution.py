@@ -27,6 +27,56 @@ class ExecutionCommands:
 
         self.transport.command("cnt")
 
+    def brk(self) -> BreakEvent | None:
+        """Force the CPU into STOP and return the resulting break event.
+
+        Returns:
+            BreakEvent | None: the USER break, or None if none was emitted.
+        """
+
+        response = self.transport.command("brk")
+        event = self._findStopEvent(response.events)
+        self.last_event = event
+        return event
+
+    def step(self) -> BreakEvent | None:
+        """Single-step one instruction and return the step's break event.
+
+        Returns:
+            BreakEvent | None: the STEP break, or None if none was emitted.
+        """
+
+        response = self.transport.command("stp")
+        event = self._findStopEvent(response.events)
+        self.last_event = event
+        return event
+
+    def stepOver(self, *, timeout: float | None = None) -> BreakEvent | None:
+        """Step over a call, returning the break event when the step completes.
+
+        Stepping over a JSR resumes into the call and breaks at the return, so
+        the completing event can arrive on a later prompt; the transport
+        collects across that race.
+
+        Args:
+            timeout: seconds to wait for the completing event, or None for the default.
+
+        Returns:
+            BreakEvent | None: the STEP break, or None if none arrived.
+        """
+
+        events = self.transport.resumeCollectingEvents(
+            "sov", until_prefix="* BRK ", timeout=timeout
+        )
+        event = self._findStopEvent(events)
+        self.last_event = event
+        return event
+
+    def reset(self) -> None:
+        """Reset the CPU without changing the machine state."""
+
+        self.transport.command("rst")
+
     def runUntil(self, *, timeout: float | None = None) -> WatchHit | BreakEvent | None:
         """Resume the CPU and return the next watchpoint or break event.
 

@@ -31,7 +31,7 @@ _PROMPT = b"x16db > "
 _HEADER_PREFIXES = tuple(f"{n}: [" for n in range(1, 5))
 
 # The protocol version this client is written against.
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 
 
 class X16dbgError(Exception):
@@ -158,8 +158,8 @@ class Transport:
             self.close()
             raise
 
+    @staticmethod
     def _buildArgs(
-        self,
         emulator: str | os.PathLike[str],
         rom: str | os.PathLike[str],
         prg: str | os.PathLike[str] | None,
