@@ -1,0 +1,118 @@
+name: Publish
+
+# Trigger on pushed version tags (e.g. v0.1.0, v1.2.3).
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  # The published fork release the suite tests against; keep in step with tests.yml.
+  EMULATOR_TAG: r50-next-acscpt.2
+  ROM_ZIP_URL: https://github.com/X16Community/x16-rom/releases/download/r49/Release.R49.ROM.Image.zip
+
+jobs:
+  # Gate the release on the full suite passing against the published emulator.
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the emulator runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-2.0-0 libfluidsynth3
+
+      - name: Download the emulator from the fork release
+        run: |
+          asset="x16emu-${EMULATOR_TAG}-linux-x86_64.tar.gz"
+          curl -fsSL "https://github.com/acscpt/x16-emulator/releases/download/${EMULATOR_TAG}/${asset}" -o "$RUNNER_TEMP/x16emu.tar.gz"
+          mkdir -p "$RUNNER_TEMP/x16emu"
+          tar -xzf "$RUNNER_TEMP/x16emu.tar.gz" -C "$RUNNER_TEMP/x16emu"
+          chmod +x "$RUNNER_TEMP/x16emu/x16emu"
+          echo "X16EMU_PATH=$RUNNER_TEMP/x16emu/x16emu" >> "$GITHUB_ENV"
+
+      - name: Fetch a ROM (public release asset)
+        run: |
+          curl -fsSL "$ROM_ZIP_URL" -o "$RUNNER_TEMP/rom.zip"
+          unzip -o "$RUNNER_TEMP/rom.zip" rom.bin -d "$RUNNER_TEMP/rom"
+          echo "X16ROM_PATH=$RUNNER_TEMP/rom/rom.bin" >> "$GITHUB_ENV"
+
+      - name: Install package and test dependencies
+        run: pip install -e ".[dev,server]"
+
+      - name: Run tests
+        run: pytest tests/
+
+  # Build the sdist and wheel, then publish to PyPI via the trusted publisher.
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+
+    # The "pypi" environment must be created in the repo settings and
+    # configured as a trusted publisher on pypi.org.
+    environment: pypi
+
+    # Required for PyPI trusted publishing (OIDC); no API token needed.
+    permissions:
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build tool
+        run: pip install build
+
+      - name: Build sdist and wheel
+        run: python -m build
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+
+  # Cut a GitHub Release whose notes are the matching CHANGELOG section.
+  release:
+    needs: test
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract the changelog section for this version
+        run: |
+          # Strip the leading 'v' from the tag (e.g. v0.1.0 -> 0.1.0).
+          VERSION="${GITHUB_REF_NAME#v}"
+
+          # Take the lines between this version's header and the next '## [' header.
+          awk "/^## \[${VERSION}\]/{found=1; next} found && /^## \[/{exit} found{print}" \
+            CHANGELOG.md > /tmp/release_notes.md
+
+          # Refuse to release a version with no changelog entry.
+          if [ ! -s /tmp/release_notes.md ]; then
+            echo "No changelog section found for version ${VERSION}"
+            exit 1
+          fi
+
+      - name: Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${GITHUB_REF_NAME}" \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --notes-file /tmp/release_notes.md

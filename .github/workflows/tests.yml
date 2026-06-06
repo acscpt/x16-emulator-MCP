@@ -1,0 +1,74 @@
+name: Tests
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+
+env:
+  # The published fork release the suite tests against; bump on a new release.
+  EMULATOR_TAG: r50-next-acscpt.2
+  # A public x16-rom release asset (no token needed) for the test runs.
+  ROM_ZIP_URL: https://github.com/X16Community/x16-rom/releases/download/r49/Release.R49.ROM.Image.zip
+
+jobs:
+  test:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the emulator runtime libraries
+        run: sudo apt-get update && sudo apt-get install -y libsdl2-2.0-0 libfluidsynth3
+
+      - name: Download the emulator from the fork release
+        run: |
+          # The released proto=2 build users install; the ROM is fetched separately.
+          asset="x16emu-${EMULATOR_TAG}-linux-x86_64.tar.gz"
+          curl -fsSL "https://github.com/acscpt/x16-emulator/releases/download/${EMULATOR_TAG}/${asset}" -o "$RUNNER_TEMP/x16emu.tar.gz"
+          mkdir -p "$RUNNER_TEMP/x16emu"
+          tar -xzf "$RUNNER_TEMP/x16emu.tar.gz" -C "$RUNNER_TEMP/x16emu"
+          chmod +x "$RUNNER_TEMP/x16emu/x16emu"
+          echo "X16EMU_PATH=$RUNNER_TEMP/x16emu/x16emu" >> "$GITHUB_ENV"
+
+      - name: Fetch a ROM (public release asset)
+        run: |
+          # The ROM is separately licensed and not bundled; pull a public release.
+          curl -fsSL "$ROM_ZIP_URL" -o "$RUNNER_TEMP/rom.zip"
+          unzip -o "$RUNNER_TEMP/rom.zip" rom.bin -d "$RUNNER_TEMP/rom"
+          echo "X16ROM_PATH=$RUNNER_TEMP/rom/rom.bin" >> "$GITHUB_ENV"
+
+      - name: Install package and test dependencies
+        run: pip install -e ".[dev,server]"
+
+      - name: Run tests with coverage
+        run: pytest tests/ --cov-report=xml
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-py${{ matrix.python-version }}
+          path: tests/TEST_REPORT.md
+
+      - name: Post report to job summary
+        if: always() && matrix.python-version == '3.12'
+        run: cat tests/TEST_REPORT.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage to Codecov
+        if: matrix.python-version == '3.12'
+        uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage.xml
+          fail_ci_if_error: false
