@@ -14,6 +14,8 @@ This project is alpha. The set of tools, their return formats, and their default
 
 - **`clear_watchpoint` rejects a malformed string id.** A string that is not exactly `*` (a quoted `"*"`, a stray slot number) was passed straight through to the debugger and returned an error. The wrapper now validates it, and the tool's schema accepts only an int or `"*"`.
 
+## [0.1.0] - 2026-06-06
+
 ### Added
 
 - **`x16mcp`** - an MCP server harness exposing 40 tools including session management, memory inspection, conditional breakpoints and watchpoints, and other tools. See `docs/tool-reference.md`.
