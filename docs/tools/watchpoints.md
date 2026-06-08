@@ -41,7 +41,7 @@ Clear one watchpoint by slot id, or every watchpoint with `"*"`.
 **Parameters**
 
 - `session_id` *(string)*: the session to clear from.
-- `which` *(int or string)*: the slot id, or `"*"` for all.
+- `which` *(int or `"*"`)*: the slot id, or `"*"` for all; any other string is rejected.
 
 **Returns**
 

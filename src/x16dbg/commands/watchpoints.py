@@ -108,9 +108,23 @@ class WatchpointCommands:
 
         Args:
             which: the slot id to clear, or "*" to clear every watchpoint.
+
+        Raises:
+            X16dbgError: when which is a string other than the exact wildcard.
         """
 
-        argument = "*" if which == "*" else str(which)
+        # A string argument is only meaningful as the bare wildcard; reject
+        # anything else (a quoted '"*"', stray whitespace) before it reaches
+        # cwp, which would otherwise return ERR on the malformed argument.
+        if isinstance(which, str):
+            if which != "*":
+                raise X16dbgError(f"clearWatchpoint: a string id must be '*', got {which!r}")
+
+            argument = "*"
+
+        else:
+            argument = str(which)
+
         self.transport.command("cwp " + argument)
 
     def _parseAssignedId(self, data: list[str]) -> int:

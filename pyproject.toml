@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "x16-emulator-mcp"
-version = "0.1.0"
+version = "0.1.1"
 description = "Pure-Python client harness and MCP server exposing the Commander X16 emulator's stdio debugger to MCP-speaking clients"
 readme = "README.md"
 license = { text = "MIT" }

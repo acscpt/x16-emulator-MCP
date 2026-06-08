@@ -6,7 +6,13 @@ This project is alpha. The set of tools, their return formats, and their default
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-06-06
+## [0.1.1] - 2026-06-08
+
+### Fixed
+
+- **The debugger prompt is now treated as a record separator, not a trailing terminator.** An asynchronous event (a breakpoint or watchpoint firing) arrives with its own prompt and no `RDY`, so a single read could hold several prompts. The transport now retains anything past the first prompt for the next read, and a command drains any pending event ahead of its own reply. This fixes `read_registers` and `mode` intermittently failing with a leaked `x16db > ` prompt in their output, and makes `run_until` reliably report a stopping event instead of occasionally dropping it.
+
+- **`clear_watchpoint` rejects a malformed string id.** A string that is not exactly `*` (a quoted `"*"`, a stray slot number) was passed straight through to the debugger and returned an error. The wrapper now validates it, and the tool's schema accepts only an int or `"*"`.
 
 ### Added
 

@@ -201,3 +201,45 @@ def testConditionalWatchpointDoesNotFireWhenFalse(client: Client) -> None:
     assert isinstance(event, BreakEvent)
     assert event.reason is BreakReason.STP
     assert client.listWatchpoints()[0].hits == 0
+
+
+class _RecordingTransport:
+    """Records the command lines sent, so a wrapper can be checked offline."""
+
+    def __init__(self) -> None:
+        """Start with no recorded commands."""
+
+        self.sent: list[str] = []
+
+    def command(self, line: str, *, timeout: float | None = None) -> None:
+        """Record one command line.
+
+        Args:
+            line: the command that would have been sent.
+            timeout: ignored.
+        """
+
+        self.sent.append(line)
+
+
+def testClearWatchpointValidatesAStringArgument() -> None:
+    """An int or a bare "*" passes through; any other string is rejected.
+
+    A quoted '"*"' or a stray "0" used to reach cwp and return ERR; the wrapper
+    now rejects a string that is not exactly the wildcard before sending it.
+    """
+
+    from x16dbg.commands.watchpoints import WatchpointCommands
+
+    wrapper = WatchpointCommands.__new__(WatchpointCommands)
+    wrapper.transport = _RecordingTransport()
+
+    # A slot id and the bare wildcard send the expected lines.
+    wrapper.clearWatchpoint(0)
+    wrapper.clearWatchpoint("*")
+    assert wrapper.transport.sent == ["cwp 0", "cwp *"]
+
+    # Any other string is rejected before a malformed line goes out.
+    for bad in ('"*"', "0", " * ", "all"):
+        with pytest.raises(X16dbgError):
+            wrapper.clearWatchpoint(bad)

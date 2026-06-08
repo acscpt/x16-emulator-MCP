@@ -49,7 +49,7 @@ Clear one watchpoint by slot id, or every watchpoint with `"*"`.
 
 **Parameters**
 
-- `which` *(int or str)*: the slot id, or `"*"` for all.
+- `which` *(int or `"*"`)*: the slot id, or `"*"` for all; a string other than `"*"` raises `X16dbgError`.
 
 [^ Index](../python-api.md#index)
 

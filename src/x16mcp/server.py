@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import asdict
+from typing import Literal
 
 from mcp.server.fastmcp import FastMCP, Image
 
@@ -621,7 +622,7 @@ def list_breakpoints(session_id: str) -> dict[str, list[dict[str, object]]]:
 
 
 @mcp.tool()
-def clear_watchpoint(session_id: str, which: int | str) -> dict[str, bool]:
+def clear_watchpoint(session_id: str, which: int | Literal["*"]) -> dict[str, bool]:
     """Clear one watchpoint by slot id, or all of them with "*".
 
     Args:

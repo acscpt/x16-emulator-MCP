@@ -134,6 +134,10 @@ class Transport:
         self.last_header: list[str] = []
         self.proto_version: int | None = None
 
+        # Bytes read past one prompt are retained here for the next read, so the
+        # prompt is treated as a record separator rather than a trailing marker.
+        self._buf = b""
+
         # Headless: the dummy SDL drivers open no window and no audio device.
         env = os.environ.copy()
         env["SDL_VIDEODRIVER"] = "dummy"
@@ -266,27 +270,34 @@ class Transport:
             )
 
     def _readUntilPrompt(self, timeout: float) -> str:
-        """Read stdout until the buffer ends with the prompt, then return the body.
+        """Read one prompt-delimited response, retaining anything past the prompt.
+
+        The prompt is a record separator, not just a trailing marker: an
+        asynchronous event (a breakpoint or watchpoint firing) arrives on its
+        own line carrying its own prompt, so a single read can contain several.
+        This returns the body up to the first prompt and keeps the remainder
+        buffered for the next call, so each read consumes exactly one prompt and
+        a mid-stream prompt never leaks into the parsed lines.
 
         Args:
             timeout: seconds to wait for the prompt to arrive.
 
         Returns:
-            str: the decoded text before the prompt.
+            str: the decoded text before the first prompt in the stream.
 
         Raises:
             TimeoutError: when no prompt arrives within the timeout.
             EOFError: when the emulator closes stdout before a prompt.
         """
 
-        buf = b""
         deadline = time.monotonic() + timeout
 
-        while not buf.endswith(_PROMPT):
+        # Read more only until the retained buffer holds at least one full prompt.
+        while _PROMPT not in self._buf:
             remaining = deadline - time.monotonic()
 
             if remaining <= 0:
-                raise TimeoutError(f"no prompt within {timeout}s; buffer={buf!r}")
+                raise TimeoutError(f"no prompt within {timeout}s; buffer={self._buf!r}")
 
             ready, _, _ = select.select([self.proc.stdout], [], [], min(0.05, remaining))
 
@@ -296,11 +307,14 @@ class Transport:
             chunk = os.read(self.proc.stdout.fileno(), 4096)
 
             if not chunk:
-                raise EOFError(f"emulator closed stdout before a prompt; buffer={buf!r}")
+                raise EOFError(f"emulator closed stdout before a prompt; buffer={self._buf!r}")
 
-            buf += chunk
+            self._buf += chunk
 
-        body = buf[: -len(_PROMPT)].decode("ascii", errors="replace")
+        # Split at the first prompt; the tail (a queued async event, say) stays
+        # buffered for the next read.
+        head, _, self._buf = self._buf.partition(_PROMPT)
+        body = head.decode("ascii", errors="replace")
         return body
 
     def send(self, line: str) -> None:
@@ -367,16 +381,30 @@ class Transport:
 
         self.send(line)
 
-        body = self._readUntilPrompt(self._command_timeout if timeout is None else timeout)
-        response = self._parseBody(body)
+        wait = self._command_timeout if timeout is None else timeout
 
-        if response.terminator is None:
-            raise X16dbgError(f"{line!r}: prompt without RDY or ERR; data={response.data}")
+        # A command's reply ends in RDY or ERR. An asynchronous event (its own
+        # line plus its own prompt, with no terminator) can sit ahead of that
+        # reply in the stream, so read past such event-only responses, keeping
+        # their events, until the reply that actually terminates arrives.
+        reply = Response()
 
-        if response.terminator.startswith("ERR"):
-            raise X16dbgError(f"{line!r}: {response.terminator}")
+        while True:
+            body = self._readUntilPrompt(wait)
+            chunk = self._parseBody(body)
 
-        return response
+            reply.events += chunk.events
+
+            if chunk.terminator is not None:
+                reply.data = chunk.data
+                reply.header = chunk.header
+                reply.terminator = chunk.terminator
+                break
+
+        if reply.terminator.startswith("ERR"):
+            raise X16dbgError(f"{line!r}: {reply.terminator}")
+
+        return reply
 
     def waitPrompt(self, *, timeout: float | None = None) -> Response:
         """Read the next prompt without sending anything.
