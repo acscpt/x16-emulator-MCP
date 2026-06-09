@@ -27,6 +27,25 @@ def testWriteThenReadRoundTrips(client: Client) -> None:
     assert dump.data == b"\xde\xad\xbe\xef"
 
 
+def testWriteLongerThanTheWmmCapRoundTrips(client: Client) -> None:
+    """A write past the wmm 14-byte line cap is chunked, not silently truncated.
+
+    Args:
+        client: the connected client fixture.
+    """
+
+    client.brk()
+
+    # Forty distinct bytes span three wmm chunks; clear the range first so a
+    # short write cannot pass by leaving stale matching bytes behind.
+    values = [(i + 1) & 0xFF for i in range(40)]
+    client.fill(0x00, 0x0400, 0x00, 64)
+    client.writeMemory(0x00, 0x0400, values)
+    dump = client.readMemory(0x00, 0x0400, 40)
+
+    assert dump.data == bytes(values)
+
+
 def testFillRepeatsTheValue(client: Client) -> None:
     """Fill writes the same byte across the whole range.
 

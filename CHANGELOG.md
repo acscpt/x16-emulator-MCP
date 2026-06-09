@@ -6,6 +6,12 @@ This project is alpha. The set of tools, their return formats, and their default
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-06-09
+
+### Fixed
+
+- **`write_memory` no longer silently truncates a write past 14 bytes.** The underlying `wmm` debugger command caps a write line at 14 bytes, so a longer write left the tail unwritten while the tool still reported success. The write is now fanned out into one `wmm` call per 14-byte chunk, so a write of any length lands in full.
+
 ## [0.1.2] - 2026-06-09
 
 ### Fixed

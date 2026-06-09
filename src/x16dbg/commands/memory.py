@@ -15,6 +15,10 @@ from collections.abc import Iterable
 from x16dbg.models import MemoryDump
 from x16dbg.transport import Transport, formatHex, parseHex
 
+# wmm silently truncates a write line past this many bytes, so writeMemory fans
+# a longer write out into one wmm call per chunk of this size.
+_WMM_MAX_BYTES = 14
+
 
 class MemoryCommands:
     """Read, write, fill, and search CPU memory, mixed into the client facade."""
@@ -51,10 +55,15 @@ class MemoryCommands:
             values: the byte values to write in order, starting at addr.
         """
 
-        # wmm <bank> <addr> <hex>...; each value goes out as one byte of hex.
-        hex_bytes = " ".join(formatHex(value, 2) for value in values)
-        command = f"wmm {formatHex(bank, 2)} {formatHex(addr, 4)} {hex_bytes}"
-        self.transport.command(command)
+        # wmm <bank> <addr> <hex>...; one byte of hex per value, but the line is
+        # capped, so write in chunks and advance the address by what is written.
+        data = list(values)
+
+        for offset in range(0, len(data), _WMM_MAX_BYTES):
+            chunk = data[offset : offset + _WMM_MAX_BYTES]
+            hex_bytes = " ".join(formatHex(value, 2) for value in chunk)
+            command = f"wmm {formatHex(bank, 2)} {formatHex(addr + offset, 4)} {hex_bytes}"
+            self.transport.command(command)
 
     def fill(self, bank: int, addr: int, value: int, count: int = 1) -> None:
         """Fill a range of CPU RAM with a byte through the CPU write path.
