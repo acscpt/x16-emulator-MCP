@@ -8,7 +8,7 @@ on:
 
 env:
   # The published fork release the suite tests against; keep in step with tests.yml.
-  EMULATOR_TAG: r50-next-acscpt.3
+  EMULATOR_TAG: r50-next-acscpt.4
   ROM_ZIP_URL: https://github.com/X16Community/x16-rom/releases/download/r49/Release.R49.ROM.Image.zip
 
 jobs:

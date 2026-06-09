@@ -89,3 +89,24 @@ def testFindReturnsEmptyWhenAbsent(client: Client) -> None:
     matches = client.find(0x00, 0x0500, 0x10, [0xFE, 0xED])
 
     assert matches == ()
+
+
+def testHiramReadWriteHonourTheBankArgument(client: Client) -> None:
+    """A HiRAM read or write targets the named bank, not the live RAM bank.
+
+    Needs an emulator that resolves the explicit bank for the $A000-$BFFF
+    window; on an older build both banks read back the live bank's byte.
+
+    Args:
+        client: the connected client fixture.
+    """
+
+    client.brk()
+
+    # Distinct markers in two banks at the same HiRAM address; each read must
+    # return its own bank's byte, whichever bank the CPU has selected.
+    client.writeMemory(0x01, 0xA100, [0x11])
+    client.writeMemory(0x02, 0xA100, [0x22])
+
+    assert client.readMemory(0x01, 0xA100, 1).data == b"\x11"
+    assert client.readMemory(0x02, 0xA100, 1).data == b"\x22"

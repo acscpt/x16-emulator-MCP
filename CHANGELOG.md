@@ -6,6 +6,12 @@ This project is alpha. The set of tools, their return formats, and their default
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-06-09
+
+### Fixed
+
+- **Cross-bank `read_memory` / `write_memory` now address the named bank directly in HiRAM.** The `bank` argument is now honoured for the `$A000-$BFFF` window, so a read or write targets that bank regardless of which one the CPU has selected; previously the live `RAM_BANK` governed and the argument had no effect there. The fix is in the emulator: update to [`r50-next-acscpt.4`](https://github.com/acscpt/x16-emulator/releases). CI now tests against that release.
+
 ## [0.1.3] - 2026-06-09
 
 ### Fixed
