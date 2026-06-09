@@ -8,7 +8,7 @@ on:
 
 env:
   # The published fork release the suite tests against; bump on a new release.
-  EMULATOR_TAG: r50-next-acscpt.2
+  EMULATOR_TAG: r50-next-acscpt.3
   # A public x16-rom release asset (no token needed) for the test runs.
   ROM_ZIP_URL: https://github.com/X16Community/x16-rom/releases/download/r49/Release.R49.ROM.Image.zip
 

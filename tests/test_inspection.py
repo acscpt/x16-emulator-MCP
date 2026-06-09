@@ -9,6 +9,8 @@ VERA state snapshot, using known writes where a value can be pinned.
 
 from __future__ import annotations
 
+import time
+
 from x16dbg.client import Client
 
 
@@ -76,3 +78,30 @@ def testVeraStateReturnsSnapshot(client: Client) -> None:
 
     assert isinstance(state.addr0, int)
     assert isinstance(state.hscale, int)
+
+
+def testVeraTimingAdvancesWhileTheCpuRuns(client: Client) -> None:
+    """VERA keeps ticking under -debugstdio, so VBL-paced programs make progress.
+
+    Regression for the headless-VERA freeze: -debugstdio is windowless, but VERA
+    must still advance its frame timing (the VBL flag, raster, ISR) or any program
+    that polls $9F27 bit 0 spins forever. Running the CPU in short bursts and
+    sampling VERA's video register must show it change; a frozen VERA reports one
+    constant value at every stop. Needs an emulator with the headless-VERA fix.
+
+    Args:
+        client: the connected client fixture.
+    """
+
+    seen = set()
+
+    # Run the CPU in short bursts, sampling VERA's video register at each stop.
+    # Its field bit toggles every frame, so a live VERA yields more than one
+    # value across the stops while a frozen one stays put.
+    for _ in range(4):
+        client.cont()
+        time.sleep(0.05)
+        client.brk()
+        seen.add(client.veraState().video)
+
+    assert len(seen) > 1

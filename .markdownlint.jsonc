@@ -6,6 +6,14 @@
 // the rule and why it is being overridden. Ideally with sarcasm/burn.
 //
 {
+  // MD024/no-duplicate-heading: flags the repeated "### Fixed" / "### Added"
+  // headings as duplicates, having evidently never read the Keep a Changelog
+  // spec it imagines it is enforcing, in which those headings recur under every
+  // version by design. Calling a mandated format an error takes nerve. We grant
+  // it siblings_only so it can still catch a real duplicate, the kind that lives
+  // under the same parent, and otherwise mind its own business.
+  "MD024": { "siblings_only": true },
+
   // MD013/line-length: an 80-column rule for prose Markdown is a 1970s
   // punch-card limit cosplaying as best practice. Every renderer that
   // matters soft-wraps; hard-wrapping just turns every paragraph edit

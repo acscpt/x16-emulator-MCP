@@ -138,10 +138,9 @@ class Transport:
         # prompt is treated as a record separator rather than a trailing marker.
         self._buf = b""
 
-        # Headless: the dummy SDL drivers open no window and no audio device.
+        # -debugstdio runs the emulator headless (no SDL init), so it inherits
+        # the environment unchanged.
         env = os.environ.copy()
-        env["SDL_VIDEODRIVER"] = "dummy"
-        env["SDL_AUDIODRIVER"] = "dummy"
 
         args = self._buildArgs(emulator, rom, prg, load_addr, run, startup_bp, warp)
 

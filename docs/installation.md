@@ -34,7 +34,9 @@ x16-emulator-MCP drives the emulator over its headless `-debugstdio` line protoc
 
 4. A fix so breakpoints fire in the banked `$A000-$FFFF` window, not only in low RAM.
 
-The minimum fork version that ships these is the [`r50-next-acscpt.1`](https://github.com/acscpt/x16-emulator/releases) release.
+5. VERA's frame timing ticks under `-debugstdio`, so a program paced off the VBL flag (`$9F27` bit 0) runs to completion instead of spinning forever.
+
+The minimum fork version that ships all of these is the [`r50-next-acscpt.3`](https://github.com/acscpt/x16-emulator/releases) release.
 
 There are two ways to obtain the binary.
 
