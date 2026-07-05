@@ -96,12 +96,18 @@ def testVeraTimingAdvancesWhileTheCpuRuns(client: Client) -> None:
     seen = set()
 
     # Run the CPU in short bursts, sampling VERA's video register at each stop.
-    # Its field bit toggles every frame, so a live VERA yields more than one
-    # value across the stops while a frozen one stays put.
-    for _ in range(4):
+    # Its current-field bit toggles every frame, so a live VERA yields more than
+    # one value across the stops while a frozen one stays put. Poll until it
+    # changes rather than fixing the burst count, so a loaded CI runner that
+    # ticks VERA slowly gets more attempts instead of flaking; a frozen VERA
+    # never changes and still fails once the attempts run out.
+    for _ in range(40):
         client.cont()
         time.sleep(0.05)
         client.brk()
         seen.add(client.veraState().video)
+
+        if len(seen) > 1:
+            break
 
     assert len(seen) > 1
