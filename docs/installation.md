@@ -68,6 +68,8 @@ A `rom.bin` is still needed separately, from the [X16Community/x16-rom releases]
 
 The server finds the binary and the ROM from, in order: an explicit path passed in code, the `X16EMU_PATH` and `X16ROM_PATH` environment variables, or a `resources/` folder at the repository root holding `x16emu` and `rom.bin`. The MCP client config below sets the two environment variables; the `resources/` folder is the convenient route for the Python library and the test suite.
 
+`X16FS_ROOT` is an optional third parameter: the host directory that the emulator will use as its disk. When set, a booted program's KERNAL `LOAD` reads host files from that directory over the device-8 host-filesystem passthrough. It is server-level, shared by all sessions, and takes effect on the next session that is created. When unset, the emulator falls back to its own working directory.
+
 ## Install x16-emulator-MCP
 
 For a standard install, use PyPI. The server needs the MCP SDK, which the `server` extra pulls in:
@@ -112,18 +114,21 @@ A typical entry:
       "args": [],
       "env": {
         "X16EMU_PATH": "/absolute/path/to/x16emu",
-        "X16ROM_PATH": "/absolute/path/to/rom.bin"
+        "X16ROM_PATH": "/absolute/path/to/rom.bin",
+        "X16FS_ROOT": "/absolute/path/to/fsrootdir"
       }
     }
   }
 }
 ```
 
-Three paths must be absolute:
+Paths must be absolute:
 
 - `command` is the path to the `x16mcp` entry point inside the venv where you installed the server.
 
 - `X16EMU_PATH` and `X16ROM_PATH` point at the emulator binary and the ROM. The MCP client spawns the server in an unspecified working directory, so relative paths will not resolve.
+
+- `X16FS_ROOT` is optional and points to a host directory to act as loaded disc.
 
 ### Claude Code
 

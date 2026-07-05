@@ -63,6 +63,7 @@ class Client(
         run: bool = False,
         startup_bp: int | None = None,
         warp: bool = True,
+        fsroot: str | os.PathLike[str] | None = None,
         require_proto: int | None = PROTOCOL_VERSION,
         command_timeout: float = 2.0,
         event_timeout: float = 5.0,
@@ -77,6 +78,8 @@ class Client(
             run: when True, autostart the loaded program with BASIC RUN.
             startup_bp: optional hex address to break at on startup.
             warp: when True, remove the speed throttle.
+            fsroot: optional host directory served to the machine as its
+                filesystem root (device 8 HostFS); omitted leaves the default.
             require_proto: protocol version to require, or None to skip the gate.
             command_timeout: seconds to wait for a command's prompt.
             event_timeout: seconds to wait for an asynchronous event prompt.
@@ -93,6 +96,7 @@ class Client(
             run=run,
             startup_bp=startup_bp,
             warp=warp,
+            fsroot=fsroot,
             require_proto=require_proto,
             command_timeout=command_timeout,
             event_timeout=event_timeout,

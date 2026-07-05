@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from x16dbg.config import discoverEmulator, discoverPrg, discoverRom
+from x16dbg.config import discoverEmulator, discoverFsroot, discoverPrg, discoverRom
 
 
 def testExplicitEmulatorPathWins(tmp_path: Path) -> None:
@@ -95,3 +95,55 @@ def testRomDiscoveredFromResources(romPath: Path) -> None:
 
     assert romPath.is_file()
     assert romPath.name == "rom.bin"
+
+
+def testFsrootEnvOverride(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """X16FS_ROOT is resolved to the absolute directory when set.
+
+    Args:
+        tmp_path: pytest temporary directory used as the filesystem root.
+        monkeypatch: pytest fixture used to set the environment variable.
+    """
+
+    monkeypatch.setenv("X16FS_ROOT", str(tmp_path))
+
+    assert discoverFsroot() == tmp_path.resolve()
+
+
+def testExplicitFsrootWins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """An explicit root is honoured ahead of X16FS_ROOT.
+
+    Args:
+        tmp_path: pytest temporary directory used as the explicit root.
+        monkeypatch: pytest fixture used to set a competing environment value.
+    """
+
+    monkeypatch.setenv("X16FS_ROOT", str(tmp_path / "from-env"))
+
+    assert discoverFsroot(explicit=tmp_path) == tmp_path.resolve()
+
+
+def testFsrootUnsetIsNone(monkeypatch: pytest.MonkeyPatch) -> None:
+    """With nothing configured, no root is imposed.
+
+    Args:
+        monkeypatch: pytest fixture used to clear the environment variable.
+    """
+
+    monkeypatch.delenv("X16FS_ROOT", raising=False)
+
+    assert discoverFsroot() is None
+
+
+def testConfiguredFsrootThatIsNotADirectoryRaises(tmp_path: Path) -> None:
+    """A root that is not a directory fails loudly rather than serving nothing.
+
+    Args:
+        tmp_path: pytest temporary directory holding a plain file to point at.
+    """
+
+    plain_file = tmp_path / "not-a-dir"
+    plain_file.write_bytes(b"")
+
+    with pytest.raises(NotADirectoryError):
+        discoverFsroot(explicit=plain_file)

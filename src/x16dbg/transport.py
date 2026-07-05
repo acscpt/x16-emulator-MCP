@@ -107,6 +107,7 @@ class Transport:
         run: bool = False,
         startup_bp: int | None = None,
         warp: bool = True,
+        fsroot: str | os.PathLike[str] | None = None,
         require_proto: int | None = PROTOCOL_VERSION,
         command_timeout: float = 2.0,
         event_timeout: float = 5.0,
@@ -121,6 +122,8 @@ class Transport:
             run: when True, autostart the loaded program with BASIC RUN.
             startup_bp: optional hex address to break at on startup.
             warp: when True, remove the speed throttle (the usual harness mode).
+            fsroot: optional host directory served to the machine as its
+                filesystem root (device 8 HostFS); omitted leaves the default.
             require_proto: protocol version to require, or None to skip the gate.
             command_timeout: seconds to wait for a command's prompt.
             event_timeout: seconds to wait for an asynchronous event prompt.
@@ -142,7 +145,7 @@ class Transport:
         # the environment unchanged.
         env = os.environ.copy()
 
-        args = self._buildArgs(emulator, rom, prg, load_addr, run, startup_bp, warp)
+        args = self._buildArgs(emulator, rom, prg, load_addr, run, startup_bp, warp, fsroot)
 
         self.proc = subprocess.Popen(
             args,
@@ -170,6 +173,7 @@ class Transport:
         run: bool,
         startup_bp: int | None,
         warp: bool,
+        fsroot: str | os.PathLike[str] | None,
     ) -> list[str]:
         """Assemble the emulator command line from the launch options.
 
@@ -181,12 +185,19 @@ class Transport:
             run: when True, append -run to autostart the program.
             startup_bp: optional hex startup breakpoint after -debugstdio.
             warp: when True, append -warp.
+            fsroot: optional host directory passed as -fsroot.
 
         Returns:
             list[str]: the argv for the subprocess.
         """
 
         args = [str(emulator), "-rom", str(rom)]
+
+        # A host directory served to the machine as its filesystem root, so a
+        # booted program's device-8 LOAD finds files there. Omitted leaves the
+        # emulator's default (its own working directory).
+        if fsroot is not None:
+            args += ["-fsroot", str(fsroot)]
 
         # A PRG is loaded from the host filesystem, with an optional load
         # address (bare hex) and an optional autostart.

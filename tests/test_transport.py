@@ -147,11 +147,11 @@ def testBuildArgsAssemblesLaunchOptions() -> None:
     live load is timing-dependent; the argv is what the harness actually owns.
     """
 
-    plain = Transport._buildArgs("x16emu", "rom.bin", None, None, False, None, True)
+    plain = Transport._buildArgs("x16emu", "rom.bin", None, None, False, None, True, None)
     assert plain == ["x16emu", "-rom", "rom.bin", "-debugstdio", "-warp"]
 
     # A PRG with a load-address override and autostart, a startup breakpoint, no warp.
-    full = Transport._buildArgs("x16emu", "rom.bin", "app.prg", 0x0801, True, 0xC000, False)
+    full = Transport._buildArgs("x16emu", "rom.bin", "app.prg", 0x0801, True, 0xC000, False, None)
     assert full == [
         "x16emu",
         "-rom",
@@ -162,6 +162,21 @@ def testBuildArgsAssemblesLaunchOptions() -> None:
         "-debugstdio",
         "c000",
     ]
+
+
+def testBuildArgsAddsFsrootWhenSet() -> None:
+    """A configured fsroot becomes a -fsroot argument, and is omitted otherwise.
+
+    The flag rides just after -rom so it reads as machine setup, and it appears
+    only when a root is given; with none the argv is byte-for-byte the default.
+    """
+
+    with_root = Transport._buildArgs("x16emu", "rom.bin", None, None, False, None, True, "/srv/x16")
+    assert with_root == ["x16emu", "-rom", "rom.bin", "-fsroot", "/srv/x16", "-debugstdio", "-warp"]
+
+    # Omitted leaves no trace of the flag in the argv.
+    without = Transport._buildArgs("x16emu", "rom.bin", None, None, False, None, True, None)
+    assert "-fsroot" not in without
 
 
 def testCommandAfterProcessDeathRaises(transport: Transport) -> None:

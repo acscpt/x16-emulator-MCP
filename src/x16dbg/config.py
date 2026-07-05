@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: MIT
 
 """Discovery of the external runtime inputs: the emulator binary, the ROM,
-and an optional PRG to boot.
+an optional PRG to boot, and an optional host filesystem root.
 
 None of these are packaged. They are found in a fixed order so a developer
 can either point at them explicitly, set an environment variable, or drop
@@ -160,3 +160,42 @@ def discoverPrg(explicit: str | os.PathLike[str] | None = None) -> Path | None:
             return resolved
 
     return None
+
+
+def discoverFsroot(explicit: str | os.PathLike[str] | None = None) -> Path | None:
+    """Locate an optional host directory to serve as the emulated filesystem root.
+
+    Unlike the file inputs, a filesystem root is opt-in: it is honoured only from
+    an explicit argument or the X16FS_ROOT environment variable, never guessed
+    from a search path, so a session serves a host directory to device 8 only
+    when one is deliberately configured. A configured-but-missing root is an
+    error, not a silent fallback, so a typo fails at session start rather than
+    booting a machine whose LOADs quietly find nothing.
+
+    Args:
+        explicit: caller-supplied path tried ahead of the environment.
+
+    Returns:
+        Path | None: the resolved directory, or None when none is configured.
+
+    Raises:
+        NotADirectoryError: when a root is configured but is not a directory.
+    """
+
+    # An explicit path beats X16FS_ROOT; with neither set, no root is imposed
+    # and the emulator keeps its default (its own working directory).
+    raw = explicit if explicit is not None else os.environ.get("X16FS_ROOT")
+
+    if not raw:
+        return None
+
+    # The MCP client spawns the server in an unspecified working directory, so
+    # resolve to an absolute path before the emulator resolves it against cwd.
+    resolved = Path(raw).resolve()
+
+    # A configured root that is not a directory would serve nothing; surface it
+    # here rather than letting the load silently fail later.
+    if not resolved.is_dir():
+        raise NotADirectoryError(f"fsroot is not a directory: {resolved}")
+
+    return resolved

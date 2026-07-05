@@ -8,7 +8,7 @@ A session is one emulator subprocess, and a `Client` owns it from spawn to teard
 
 ```python
 Client.launch(emulator, rom, *, prg=None, load_addr=None, run=False,
-              startup_bp=None, warp=True, require_proto=2,
+              startup_bp=None, warp=True, fsroot=None, require_proto=2,
               command_timeout=2.0, event_timeout=5.0) -> Client
 ```
 
@@ -27,6 +27,8 @@ Spawn the emulator headless and return a connected client. This is the entry poi
 - `startup_bp` *(int or None)*: a hex address to break at on startup. With no startup breakpoint the CPU runs freely from reset.
 
 - `warp` *(bool)*: when True (the default for an automated harness), remove the speed throttle so the CPU runs as fast as the host allows.
+
+- `fsroot` *(path or None)*: a host directory the emulated machine uses as its disk, so a booted program's KERNAL `LOAD` reads real files from it over the device-8 passthrough. With none the emulator uses its own working directory. `discoverFsroot()` resolves it from the `X16FS_ROOT` environment variable.
 
 - `require_proto` *(int or None)*: the protocol version to require; `None` skips the check.
 

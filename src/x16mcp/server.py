@@ -22,7 +22,7 @@ from typing import Literal
 from mcp.server.fastmcp import FastMCP, Image
 
 from x16dbg.client import Client
-from x16dbg.config import discoverEmulator, discoverPrg, discoverRom
+from x16dbg.config import discoverEmulator, discoverFsroot, discoverPrg, discoverRom
 from x16dbg.models import BreakEvent, WatchHit, Watchpoint
 
 mcp: FastMCP = FastMCP("x16mcp")
@@ -89,6 +89,10 @@ def _launchClient(
     # With no explicit PRG, fall back to a configured default if one is present.
     resolved_prg = prg if prg is not None else discoverPrg()
 
+    # The host filesystem root is a server-level setting (X16FS_ROOT), so every
+    # session inherits it without the tools carrying a per-call parameter.
+    fsroot = discoverFsroot()
+
     client = Client.launch(
         emulator,
         rom,
@@ -96,6 +100,7 @@ def _launchClient(
         load_addr=load_addr,
         run=run,
         startup_bp=startup_bp,
+        fsroot=fsroot,
     )
     return client
 
@@ -168,6 +173,11 @@ def create_session(
     boots to BASIC. The protocol version is gated at startup, so a mismatched
     emulator fails here rather than misbehaving later.
 
+    When the server is configured with a filesystem root (the X16FS_ROOT
+    environment variable), the booted machine serves that host directory to
+    device 8, so a program's LOAD reads files from it. This is a server-level
+    setting shared by every session, not a per-call argument.
+
     Args:
         prg: a PRG to boot, or None to use a configured default if present.
         load_addr: an override load address for the PRG.
@@ -220,7 +230,8 @@ def boot_program(
     by typing LOAD at the BASIC prompt, so the program is present only after the
     machine has run long enough to process it: resume and let it boot, or break
     at the program's entry, rather than reading it immediately. For an in-session
-    CPU reset that keeps the same program, use reset.
+    CPU reset that keeps the same program, use reset. The respawn inherits the
+    server's filesystem root (X16FS_ROOT), same as create_session.
 
     Args:
         session_id: the session to respawn.

@@ -28,6 +28,8 @@ create_session(startup_bp=49152)      ->  {"session_id": "a91b..."}
 
 The second call breaks at `$C000` (49152) as soon as the machine reaches it, handy for stopping before the program runs.
 
+The machine's disk (device 8) is the host directory named by the server's `X16FS_ROOT` environment variable, so a booted program's KERNAL `LOAD` reads real files from it. This is a server-level setting shared by every session, configured once where the server is launched, not a per-call parameter; with it unset the emulator uses its own working directory. See [the installation guide](../installation.md#point-the-server-at-them).
+
 [^ Index](../tool-reference.md#index)
 
 ---
@@ -58,7 +60,7 @@ close_session("7f3a...")  ->  {"ok": true}
 
 Load a different program into a session by respawning its emulator.
 
-The protocol is one subprocess per session, so switching the program means a fresh spawn; the session keeps its id. The emulator loads a PRG by typing LOAD at the BASIC prompt, so the program is present only after the machine has run: resume and let it boot, or set `startup_bp` at the program's entry on the next `create_session`, rather than reading memory the instant this returns. For an in-session CPU reset that keeps the same program, use [`reset`](execution.md#reset).
+The protocol is one subprocess per session, so switching the program means a fresh spawn; the session keeps its id. The emulator loads a PRG by typing LOAD at the BASIC prompt, so the program is present only after the machine has run: resume and let it boot, or set `startup_bp` at the program's entry on the next `create_session`, rather than reading memory the instant this returns. The respawn inherits the same `X16FS_ROOT` disk as `create_session`. For an in-session CPU reset that keeps the same program, use [`reset`](execution.md#reset).
 
 **Parameters**
 

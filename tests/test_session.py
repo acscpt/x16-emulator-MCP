@@ -9,7 +9,32 @@ checked through the header lines the transport records.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 from x16dbg.client import Client
+
+
+def testSessionLaunchesWithAFilesystemRoot(
+    emulatorBinary: Path, romPath: Path, tmp_path: Path
+) -> None:
+    """A session boots with -fsroot pointed at a host directory.
+
+    Proves the flag the harness emits is accepted by the emulator and the
+    session comes up cleanly; device 8 then serves that directory to a booted
+    program. The file inputs come from the discovery fixtures, so the test skips
+    cleanly when they are absent.
+
+    Args:
+        emulatorBinary: the discovered emulator path fixture.
+        romPath: the discovered ROM path fixture.
+        tmp_path: pytest temporary directory served as the filesystem root.
+    """
+
+    with Client.launch(emulatorBinary, romPath, fsroot=tmp_path) as connected:
+        # A reported protocol version means the startup handshake completed, so
+        # the emulator accepted the extra -fsroot argument and booted.
+        assert connected.protocolVersion is not None
+        assert connected.mode() in ("stop", "run")
 
 
 def testModeReflectsStopAndRun(client: Client) -> None:

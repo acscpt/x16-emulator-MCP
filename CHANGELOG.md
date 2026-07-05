@@ -6,6 +6,12 @@ This project is alpha. The set of tools, their return formats, and their default
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-07-05
+
+### Added
+
+- **A host filesystem root**, set with the `X16FS_ROOT` environment variable. When configured, every session serves that host directory to device 8, so a booted program's KERNAL `LOAD` reads real files from it. It is a server-level setting shared by all sessions rather than a per-tool argument, so omitting it launches exactly as before. A configured path that is not a directory fails at session start instead of booting a machine whose loads quietly find nothing.
+
 ## [0.1.4] - 2026-06-09
 
 ### Fixed
